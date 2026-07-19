@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic OMR Sheet Simulator</title>
+    <!-- Tailwind CSS for Responsive Design -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        /* Custom styling for OMR Bubbles */
+        .omr-bubble:checked + label {
+            background-color: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+        .status-btn.active-right {
+            background-color: #16a34a;
+            color: white;
+        }
+        .status-btn.active-wrong {
+            background-color: #dc2626;
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans text-gray-800">
+
+    <div class="max-w-5xl mx-auto px-4 py-6">
+        <!-- Header -->
+        <header class="text-center mb-6">
+            <h1 class="text-3xl font-bold text-blue-700">OMR Sheet Practice Tool</h1>
+            <p class="text-gray-600 mt-1">Apne exam ki tayaari ke liye online OMR fill karein aur evaluate karein.</p>
+        </header>
+
+        <!-- Main Configuration and Controls Panel -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <!-- Left: Question Count Setup -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">1. Questions Ki Sankhya Chunnein:</label>
+                    <div class="flex flex-wrap gap-2 mb-3">
+                        <button onclick="setQuestionCount(10)" class="px-4 py-2 bg-blue-50 text-blue-700 font-medium rounded-lg border border-blue-200 hover:bg-blue-100 transition">10 Questions</button>
+                        <button onclick="setQuestionCount(20)" class="px-4 py-2 bg-blue-50 text-blue-700 font-medium rounded-lg border border-blue-200 hover:bg-blue-100 transition">20 Questions</button>
+                        <button onclick="setQuestionCount(50)" class="px-4 py-2 bg-blue-50 text-blue-700 font-medium rounded-lg border border-blue-200 hover:bg-blue-100 transition">50 Questions</button>
+                        <button onclick="setQuestionCount(100)" class="px-4 py-2 bg-blue-50 text-blue-700 font-medium rounded-lg border border-blue-200 hover:bg-blue-100 transition">100 Questions</button>
+                    </div>
+                    
+                    <!-- Dynamic Adjusters (Chalte Test Me Badhane/Ghatane Ke Liye) -->
+                    <div class="flex items-center gap-3 pt-2 border-t border-gray-100">
+                        <span class="text-xs text-gray-500 font-medium">Chalte Test Me Badhayein/Ghatayein:</span>
+                        <button onclick="adjustQuestions(-1)" class="px-3 py-1 bg-gray-200 text-gray-700 font-bold rounded hover:bg-gray-300">-1</button>
+                        <button onclick="adjustQuestions(1)" class="px-3 py-1 bg-gray-200 text-gray-700 font-bold rounded hover:bg-gray-300">+1</button>
+                    </div>
+                </div>
+
+                <!-- Right: Timer Configuration -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">2. Timer Setup:</label>
+                    <div class="flex items-center gap-4 mb-3">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="noTimerToggle" onchange="toggleTimerMode()" class="w-4 h-4 text-blue-600 rounded border-gray-300" checked>
+                            <label for="noTimerToggle" class="ml-2 text-sm text-gray-600">Bina Timing Ke Chalaayein (Stopwatch)</label>
+                        </div>
+                    </div>
+                    
+                    <div id="timerInputContainer" class="hidden flex items-center gap-2">
+                        <input type="number" id="timerMinutes" placeholder="Minutes" value="15" min="1" class="w-24 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-blue-500">
+                        <span class="text-sm text-gray-600">Minutes Ka Test</span>
+                    </div>
+
+                    <!-- Live Dashboard Display (Timer & Counters) -->
+                    <div class="mt-4 p-3 bg-gray-50 rounded-lg flex justify-between items-center">
+                        <div>
+                            <span class="text-xs text-gray-500 block uppercase tracking-wider font-semibold">Total Questions</span>
+                            <span id="displayTotalCount" class="text-xl font-bold text-gray-800">20</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs text-gray-500 block uppercase tracking-wider font-semibold" id="timerLabel">Elapsed Time</span>
+                            <span id="timerDisplay" class="text-xl font-mono font-bold text-blue-600">00:00</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Action Trigger Row -->
+            <div class="mt-5 pt-4 border-t border-gray-100 flex flex-wrap justify-between gap-3">
+                <div class="flex gap-2">
+                    <button id="startBtn" onclick="startTest()" class="px-5 py-2.5 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 shadow-sm transition">Test Shuru Karein</button>
+                    <button id="resetBtn" onclick="resetTest()" class="px-5 py-2.5 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 shadow-sm transition">Reset Sheet</button>
+                </div>
+                <button id="submitBtn" onclick="calculateScore()" class="px-6 py-2.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-sm transition" disabled>Submit & Calculate Score</button>
+            </div>
+        </div>
+
+        <!-- Result Card (Initially Hidden) -->
+        <div id="resultCard" class="hidden bg-emerald-50 border border-emerald-200 p-5 rounded-xl mb-6 transition-all">
+            <h3 class="text-xl font-bold text-emerald-800 mb-3 flex items-center gap-2">
+                <span>📊 Test Result Analysis</span>
+            </h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div class="bg-white p-3 rounded-lg border border-emerald-100">
+                    <span class="text-xs text-gray-500 block">Total Solved</span>
+                    <span id="resAttempted" class="text-xl font-bold text-gray-800">0</span>
+                </div>
+                <div class="bg-white p-3 rounded-lg border border-emerald-100">
+                    <span class="text-xs text-gray-500 block text-green-600 font-medium">Sahi (Right)</span>
+                    <span id="resRight" class="text-xl font-bold text-green-600">0</span>
+                </div>
+                <div class="bg-white p-3 rounded-lg border border-emerald-100">
+                    <span class="text-xs text-gray-500 block text-red-600 font-medium">Galat (Wrong)</span>
+                    <span id="resWrong" class="text-xl font-bold text-red-600">0</span>
+                </div>
+                <div class="bg-white p-3 rounded-lg border border-emerald-100">
+                    <span class="text-xs text-gray-500 block">Accuracy Rate</span>
+                    <span id="resAccuracy" class="text-xl font-bold text-blue-600">0%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- OMR Grid Sheet Container -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <div id="omrContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-x-8 gap-y-3 opacity-50 pointer-events-none transition-opacity">
+                <!-- Rows will be injected dynamically via JS -->
+            </div>
+        </div>
+
+    </div>
+
+    <!-- JavaScript Engine -->
+    <script>
+        let totalQuestions = 20;
+        let testRunning = false;
+        let timerInterval = null;
+        let secondsElapsed = 0;
+        let isCountDown = false;
+        let durationSeconds = 0;
+
+        // OMR Ke options aur metadata save rakhne ke liye state management
+        let omrState = {}; 
+
+        // Initial setup on window load
+        window.onload = function() {
+            renderOMRSheet();
+        };
+
+        // UI me questions ki matrix render karne ka logic
+        function renderOMRSheet() {
+            const container = document.getElementById('omrContainer');
+            container.innerHTML = '';
+            document.getElementById('displayTotalCount').innerText = totalQuestions;
+
+            for (let i = 1; i <= totalQuestions; i++) {
+                // Agar is question ka data pehle se state me nahi hai to create karein
+                if (!omrState[i]) {
+                    omrState[i] = { selectedOption: null, status: null };
+                }
+
+                const state = omrState[i];
+
+                const row = document.createElement('div');
+                row.className = "flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 border-b border-gray-100 transition";
+                row.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="w-8 h-8 flex items-center justify-center bg-gray-100 text-gray-700 rounded-full text-sm font-bold">${i}</span>
+                        
+                        <!-- Options Group (A B C D) -->
+                        <div class="flex gap-1.5">
+                            ${['A', 'B', 'C', 'D'].map(opt => `
+                                <div class="relative">
+                                    <input type="radio" name="q_${i}" id="q_${i}_${opt}" class="omr-bubble hidden" value="${opt}" 
+                                        ${state.selectedOption === opt ? 'checked' : ''} onclick="updateOption(${i}, '${opt}')">
+                                    <label for="q_${i}_${opt}" class="w-9 h-9 border-2 border-gray-300 rounded-full flex items-center justify-center font-semibold text-sm cursor-pointer select-none transition-all hover:bg-gray-100">
+                                        ${opt}
+                                    </label>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Right / Wrong Indicators Module -->
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="toggleStatus(${i}, 'right')" class="status-btn w-8 h-8 rounded border border-gray-300 text-sm flex items-center justify-center hover:bg-green-50 transition ${state.status === 'right' ? 'active-right' : ''}" title="Sahi Hain">
+                            ✓
+                        </button>
+                        <button onclick="toggleStatus(${i}, 'wrong')" class="status-btn w-8 h-8 rounded border border-gray-300 text-sm flex items-center justify-center hover:bg-red-50 transition ${state.status === 'wrong' ? 'active-wrong' : ''}" title="Galat Hain">
+                            ✕
+                        </button>
+                    </div>
+                `;
+                container.appendChild(row);
+            }
+        }
+
+        // Quick Selector Buttons logic
+        function setQuestionCount(count) {
+            if(testRunning && !confirm("Naya count set karne se chal raha test update ho jayega. Kya aap aage badhna chahte hain?")) return;
+            totalQuestions = count;
+            renderOMRSheet();
+        }
+
+        // Increment / Decrement dynamic modifier (+1, -1 functionality)
+        function adjustQuestions(amount) {
+            let nextCount = totalQuestions + amount;
+            if (nextCount < 1) return;
+            
+            totalQuestions = nextCount;
+            // Agar question ghataya gaya hai toh purani state clear kar dete hain bounding limits ke upar se
+            if (amount < 0 && omrState[nextCount + 1]) {
+                delete omrState[nextCount + 1];
+            }
+            renderOMRSheet();
+        }
+
+        // Option update handler
+        function updateOption(qNum, val) {
+            omrState[qNum].selectedOption = val;
+        }
+
+        // Sahi aur Galat toggles validation management
+        function toggleStatus(qNum, type) {
+            if(!testRunning) return;
+            const currentStatus = omrState[qNum].status;
+            if (currentStatus === type) {
+                omrState[qNum].status = null; // Uncheck agar dobara click karein
+            } else {
+                omrState[qNum].status = type;
+            }
+            renderOMRSheet();
+        }
+
+        // Timer/Stopwatch UI visibility handling
+        function toggleTimerMode() {
+            const isNoTimer = document.getElementById('noTimerToggle').checked;
+            const timerContainer = document.getElementById('timerInputContainer');
+            const label = document.getElementById('timerLabel');
+            
+            if (isNoTimer) {
+                timerContainer.classList.add('hidden');
+                label.innerText = "Elapsed Time";
+                document.getElementById('timerDisplay').innerText = "00:00";
+            } else {
+                timerContainer.classList.remove('hidden');
+                label.innerText = "Remaining Time";
+                const mins = document.getElementById('timerMinutes').value || 15;
+                document.getElementById('timerDisplay').innerText = String(mins).padStart(2, '0') + ":00";
+            }
+        }
+
+        // Test Ignition Engine
+        function startTest() {
+            if (testRunning) return;
+
+            testRunning = true;
+            isCountDown = !document.getElementById('noTimerToggle').checked;
+            
+            // Layout activation
+            document.getElementById('omrContainer').classList.remove('opacity-50', 'pointer-events-none');
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('startBtn').classList.add('opacity-50');
+            document.getElementById('submitBtn').disabled = false;
+
+            if (isCountDown) {
+                const mins = parseInt(document.getElementById('timerMinutes').value) || 15;
+                durationSeconds = mins * 60;
+                runCountdown();
+            } else {
+                secondsElapsed = 0;
+                runStopwatch();
+            }
+        }
+
+        // Stopwatch Routine
+        function runStopwatch() {
+            timerInterval = setInterval(() => {
+                secondsElapsed++;
+                updateTimerDisplay(secondsElapsed);
+            }, 1000);
+        }
+
+        // Countdown Routine
+        function runCountdown() {
+            timerInterval = setInterval(() => {
+                if (durationSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    alert("Time's Up! Aapka test auto-submit kiya ja raha hai.");
+                    calculateScore();
+                } else {
+                    durationSeconds--;
+                    updateTimerDisplay(durationSeconds);
+                }
+            }, 1000);
+        }
+
+        // Standard formatting engine for clock values
+        function updateTimerDisplay(totalSecs) {
+            const m = Math.floor(totalSecs / 60);
+            const s = totalSecs % 60;
+            document.getElementById('timerDisplay').innerText = 
+                `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+
+        // Score Calculation Processor
+        function calculateScore() {
+            clearInterval(timerInterval);
+            testRunning = false;
+
+            let totalAttempted = 0;
+            let totalRight = 0;
+            let totalWrong = 0;
+
+            // Loop and evaluate through active states
+            for (let i = 1; i <= totalQuestions; i++) {
+                const data = omrState[i];
+                if (data && (data.selectedOption !== null || data.status !== null)) {
+                    totalAttempted++;
+                }
+                if (data && data.status === 'right') {
+                    totalRight++;
+                } else if (data && data.status === 'wrong') {
+                    totalWrong++;
+                }
+            }
+
+            const accuracy = totalAttempted > 0 ? Math.round((totalRight / totalAttempted) * 100) : 0;
+
+            // Push reports into DOM
+            document.getElementById('resAttempted').innerText = totalAttempted;
+            document.getElementById('resRight').innerText = totalRight;
+            document.getElementById('resWrong').innerText = totalWrong;
+            document.getElementById('resAccuracy').innerText = accuracy + "%";
+
+            // Show Results Dashboard
+            document.getElementById('resultCard').classList.remove('hidden');
+            
+            // Clean up controls locks
+            document.getElementById('omrContainer').classList.add('opacity-50', 'pointer-events-none');
+            document.getElementById('submitBtn').disabled = true;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('startBtn').classList.remove('opacity-50');
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Reset Engine
+        function resetTest() {
+            clearInterval(timerInterval);
+            testRunning = false;
+            omrState = {};
+            
+            document.getElementById('resultCard').classList.add('hidden');
+            document.getElementById('omrContainer').classList.add('opacity-50', 'pointer-events-none');
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('startBtn').classList.remove('opacity-50');
+            document.getElementById('submitBtn').disabled = true;
+            
+            toggleTimerMode();
+            renderOMRSheet();
+        }
+    </script>
+</body>
+</html>
